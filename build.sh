@@ -2,4 +2,5 @@
 
 set -xe
 
-cc -o bin/main src/main.c -lncurses
+cc -Wall -o bin/main src/main.c -lncurses
+./bin/main
