@@ -59,6 +59,24 @@ void init_editor(Editor *editor, const char *init_file_name)
 
 void render_editor(const Editor *editor)
 {
+    clear();
+    size_t win_x = 0;
+    size_t win_y = 0;
+
+    for(size_t i = 0; i < editor->buffer_size - 1; i++)
+    {
+        register const char c = editor->buffer[i];
+        if(c == '\n')
+        {
+            win_y++;
+            win_x = 0;
+        }
+        if(c != 0)
+        {
+            mvaddch(win_y, win_x, editor->buffer[i]);
+            win_x++;
+        }
+    }
 }
 
 void write_buffer(const Editor *editor)
@@ -73,6 +91,7 @@ void write_buffer(const Editor *editor)
     else
         output_file = fopen(editor->file_name, "w+");
     fputs(editor->buffer, output_file);
+    fclose(output_file);
 }
 
 int interact(Editor* editor,const char input)
@@ -85,8 +104,13 @@ int interact(Editor* editor,const char input)
     {
         write_buffer(editor);
     }
+    if(input == '\b')
+    {
+        return 0;
+    }
 
     editor->buffer[editor->buffer_index] = input;
+
     if(editor->buffer_index <= editor->buffer_size - 1)
         editor->buffer_index++;
 
