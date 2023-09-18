@@ -29,7 +29,7 @@ typedef struct
     const char * file_name;
     bool file_exists;
     int mode;
-} Editor;
+}Editor;
 
 void init_editor(Editor *editor, const char *init_file_name)
 {
@@ -39,7 +39,7 @@ void init_editor(Editor *editor, const char *init_file_name)
     editor->buffer = malloc(BUFFER_MIN);
     editor->buffer_size = BUFFER_MIN;
     editor->buffer_index = 0;
-
+    
     memset(editor->buffer, 0, editor->buffer_size - 1);
 
     editor->mode=1;
@@ -69,7 +69,7 @@ void write_buffer(const Editor *editor)
         char * fname = malloc(255);
         getnstr(fname, 254);
         output_file = fopen(fname, "w+");
-    }
+    } 
     else
         output_file = fopen(editor->file_name, "w+");
     fputs(editor->buffer, output_file);
@@ -77,20 +77,20 @@ void write_buffer(const Editor *editor)
 
 int interact(Editor* editor,const char input)
 {
-    if(input == 4)
-    {
-        return EDITOR_EXIT;
-    }
-    if(input == 23)
-    {
-        write_buffer(editor);
-    }
+   if(input == 4)
+   {
+    return EDITOR_EXIT;
+   }
+   if(input == 23)
+   {
+    write_buffer(editor);
+   }
 
-    editor->buffer[editor->buffer_index] = input;
-    if(editor->buffer_index <= editor->buffer_size - 1)
-        editor->buffer_index++;
-
-    return 0;
+   editor->buffer[editor->buffer_index] = input;
+   if(editor->buffer_index <= editor->buffer_size - 1)
+       editor->buffer_index++;
+    
+   return 0;
 }
 
 int main(int argc, char **argv)
