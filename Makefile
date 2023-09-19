@@ -1,2 +1,2 @@
 build:
-	gcc -o bin/doink src/main.c -lncurses
+	gcc -Wall -Wextra -o bin/doink src/main.c -lncurses
