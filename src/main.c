@@ -31,16 +31,42 @@ typedef struct
     int mode;
 } Editor;
 
+void load_buffer(Editor *editor)
+{
+    FILE *input_file = fopen(editor->file_name, "r");
+    size_t file_len = 0;
+
+    fseek(input_file, 0, SEEK_END);
+    file_len = ftell(input_file);
+    fseek(input_file, 0, 0);
+
+    editor->buffer = malloc(file_len + 1);
+    editor->buffer_size = file_len + 1;
+    editor->buffer_index = 0;
+
+    for(char c = fgetc(input_file); !feof(input_file); c = fgetc(input_file))
+    {
+        editor->buffer[editor->buffer_index] = c;
+        editor->buffer_index++;
+    }
+    fputs(editor->buffer, stderr);
+}
+
 void init_editor(Editor *editor, const char *init_file_name)
 {
     editor->file_name = init_file_name;
-    editor->file_exists = (bool) (init_file_name == NULL);
+    editor->file_exists = (bool) (init_file_name != NULL);
 
-    editor->buffer = malloc(BUFFER_MIN);
-    editor->buffer_size = BUFFER_MIN;
+    if(editor->file_exists)
+        load_buffer(editor);
+    else
+    {
+        editor->buffer = malloc(BUFFER_MIN);
+        editor->buffer_size = BUFFER_MIN;
+
+        memset(editor->buffer, 0, editor->buffer_size - 1);
+    }
     editor->buffer_index = 0;
-
-    memset(editor->buffer, 0, editor->buffer_size - 1);
 
     editor->mode=1;
 
@@ -59,7 +85,6 @@ void init_editor(Editor *editor, const char *init_file_name)
 
 void render_editor(const Editor *editor)
 {
-    clear();
     size_t win_x = 0;
     size_t win_y = 0;
 
@@ -85,7 +110,8 @@ void write_buffer(const Editor *editor)
     if(editor->file_name == NULL)
     {
         char * fname = malloc(255);
-        getnstr(fname, 254);
+        mvprintw(LINES-2, 0, "Please name your text file");
+        mvgetnstr(LINES-1, 0,fname, 254);
         output_file = fopen(fname, "w+");
     }
     else
@@ -125,6 +151,7 @@ int main(int argc, char **argv)
     for(;;)
     {
         refresh();
+        clear();
         render_editor(&editor);
         if(interact(&editor, getch()) == EDITOR_EXIT)
         {
