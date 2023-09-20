@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ncurses.h>
+#include <unistd.h>
 
 #define K * 1024
 #define M K K
@@ -31,39 +32,40 @@ typedef struct
     int mode;
 } Editor;
 
-void load_buffer(Editor *editor)
+void load_buffer_from_file(Editor *editor)
 {
     FILE *input_file = fopen(editor->file_name, "r");
-    size_t file_len = 0;
 
-    fseek(input_file, 0, SEEK_END);
-    file_len = ftell(input_file);
+    fseek(input_file, 0,SEEK_END);
+    size_t file_len = ftell(input_file);
     fseek(input_file, 0, 0);
 
-    editor->buffer = malloc(file_len + 1);
-    editor->buffer_size = file_len + 1;
-    editor->buffer_index = 0;
-
-    for(char c = fgetc(input_file); !feof(input_file); c = fgetc(input_file))
+    if(file_len > BUFFER_MIN)
     {
-        editor->buffer[editor->buffer_index] = c;
-        editor->buffer_index++;
+        editor->buffer_size = file_len + 1;
     }
-    fputs(editor->buffer, stderr);
+    else
+    {
+        editor->buffer_size = BUFFER_MIN;
+    }
+
+    editor->buffer = malloc(editor->buffer_size);
+    fgets(editor->buffer, file_len, input_file);
+    fclose(input_file);
 }
 
 void init_editor(Editor *editor, const char *init_file_name)
 {
     editor->file_name = init_file_name;
-    editor->file_exists = (bool) (init_file_name != NULL);
-
-    if(editor->file_exists)
-        load_buffer(editor);
+    if(access(editor->file_name, F_OK) == 0)
+    {
+        load_buffer_from_file(editor);
+        editor->file_exists = true;
+    }
     else
     {
         editor->buffer = malloc(BUFFER_MIN);
         editor->buffer_size = BUFFER_MIN;
-
         memset(editor->buffer, 0, editor->buffer_size - 1);
     }
     editor->buffer_index = 0;
@@ -123,17 +125,16 @@ void write_buffer(const Editor *editor)
 int interact(Editor* editor,const char input)
 {
     if(input == 4)
-    {
         return EDITOR_EXIT;
-    }
+
     if(input == 23)
     {
         write_buffer(editor);
-    }
-    if(input == '\b')
-    {
         return 0;
     }
+
+    if(input == '\b')
+        return 0;
 
     editor->buffer[editor->buffer_index] = input;
 
