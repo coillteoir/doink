@@ -24,13 +24,24 @@ typedef struct
 typedef struct
 {
     Cursor *cursors;
+    size_t lines;
     size_t buffer_size;
+    size_t buffer_usage;
     size_t buffer_index;
     char *buffer;
     const char * file_name;
     bool file_exists;
     int mode;
 } Editor;
+
+size_t count_lines(const Editor * editor)
+{
+    size_t lines = 0;
+    for(size_t i = 0; i < editor->buffer_usage; i++)
+        if(editor->buffer[i] == '\n')
+            lines++;
+    return lines;
+}
 
 void load_buffer_from_file(Editor *editor)
 {
@@ -41,16 +52,13 @@ void load_buffer_from_file(Editor *editor)
     fseek(input_file, 0, 0);
 
     if(file_len > BUFFER_MIN)
-    {
         editor->buffer_size = file_len + 1;
-    }
     else
-    {
         editor->buffer_size = BUFFER_MIN;
-    }
 
     editor->buffer = malloc(editor->buffer_size);
     fgets(editor->buffer, file_len, input_file);
+    editor->buffer_usage = file_len;
     fclose(input_file);
 }
 
@@ -61,12 +69,14 @@ void init_editor(Editor *editor, const char *init_file_name)
     {
         load_buffer_from_file(editor);
         editor->file_exists = true;
+        editor->lines = count_lines(editor);
     }
     else
     {
         editor->buffer = malloc(BUFFER_MIN);
         editor->buffer_size = BUFFER_MIN;
         memset(editor->buffer, 0, editor->buffer_size - 1);
+        editor->buffer_usage = 0;
     }
     editor->buffer_index = 0;
 
@@ -104,6 +114,10 @@ void render_editor(const Editor *editor)
             win_x++;
         }
     }
+    mvaddch(editor->cursors[0].y, editor->cursors[0].x, '@');
+
+    mvprintw(LINES-3, 0, "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X %zu CURSOR_Y %zu", 
+            editor->buffer_size, editor->buffer_usage, editor->buffer_index, editor->cursors[0].x, editor->cursors[0].y);
 }
 
 void write_buffer(const Editor *editor)
@@ -119,7 +133,32 @@ void write_buffer(const Editor *editor)
     else
         output_file = fopen(editor->file_name, "w+");
     fputs(editor->buffer, output_file);
+    fputc('\n', output_file);
     fclose(output_file);
+}
+
+/*
+ *  Count newlines in buffer
+ *      ensure cursor can't go past number of newlines.
+ *      modify buffer.
+ */
+size_t gen_index_from_cursor(const Editor * editor)
+{
+    size_t lines = 0;
+    size_t x_pos = 0;
+    for(size_t i = 0; i < editor->buffer_usage; i++)
+    {
+        if(lines == editor->cursors[0].y)
+        {
+            x_pos++;
+            if(x_pos == editor->cursors[0].x)
+            {
+                return i;
+            }
+        }
+        if(editor->buffer[i] == '\n')
+            lines++;
+    }
 }
 
 int interact(Editor* editor,const char input)
@@ -136,8 +175,43 @@ int interact(Editor* editor,const char input)
     if(input == '\b')
         return 0;
 
-    editor->buffer[editor->buffer_index] = input;
+    //Parsing Arrow key inputs
+    if(input == '\033') //first value is esc
+    {
+        getch();
+        switch(getch())
+        {
+        case 'A':
+            editor->cursors[0].y--;
+            editor->buffer_index = gen_index_from_cursor(editor);
+            break;
+        case 'B':
+            editor->cursors[0].y++;
+            editor->buffer_index = gen_index_from_cursor(editor);
+            break;
+        case 'C':
+            editor->cursors[0].x++;
+            editor->buffer_index = gen_index_from_cursor(editor);
+            break;
+        case 'D':
+            editor->cursors[0].x--;
+            editor->buffer_index = gen_index_from_cursor(editor);
+        }
+        return 0;
+    }
 
+    if(editor->mode == 1)
+    {
+        if(editor->buffer_index < editor->buffer_size)
+        {
+            editor->buffer[editor->buffer_index] = input;
+            editor->buffer_usage++;
+        }
+        if(input == '\n')
+        {
+            editor->lines++;
+        }
+    }
     if(editor->buffer_index <= editor->buffer_size - 1)
         editor->buffer_index++;
 
@@ -156,6 +230,7 @@ int main(int argc, char **argv)
         render_editor(&editor);
         if(interact(&editor, getch()) == EDITOR_EXIT)
         {
+            free(editor.buffer);
             break;
         }
     }
