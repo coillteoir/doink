@@ -116,8 +116,8 @@ void render_editor(const Editor *editor)
     }
     mvaddch(editor->cursors[0].y, editor->cursors[0].x, '@');
 
-    mvprintw(LINES-3, 0, "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X %zu CURSOR_Y %zu", 
-            editor->buffer_size, editor->buffer_usage, editor->buffer_index, editor->cursors[0].x, editor->cursors[0].y);
+    mvprintw(LINES-3, 0, "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X %zu CURSOR_Y %zu",
+             editor->buffer_size, editor->buffer_usage, editor->buffer_index, editor->cursors[0].x, editor->cursors[0].y);
 }
 
 void write_buffer(const Editor *editor)
