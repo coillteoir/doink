@@ -11,6 +11,7 @@
 
 #define BUFFER_MAX 1 G
 #define BUFFER_MIN 1 K
+#define CURSOR_EDGE 4
 #define CURSOR_MAX 4
 #define EDITOR_EXIT 1
 
@@ -57,8 +58,16 @@ void load_buffer_from_file(Editor *editor)
         editor->buffer_size = BUFFER_MIN;
 
     editor->buffer = malloc(editor->buffer_size);
-    fgets(editor->buffer, file_len, input_file);
+
+    for(char c = fgetc(input_file); !feof(input_file); c = fgetc(input_file))
+    {
+        static int i = 0;
+        editor->buffer[i] = c;
+        i++;
+    }
+
     editor->buffer_usage = file_len;
+
     fclose(input_file);
 }
 
@@ -83,9 +92,9 @@ void init_editor(Editor *editor, const char *init_file_name)
     editor->mode=1;
 
     static Cursor init_cursors[CURSOR_MAX];
-    init_cursors[0].x = 0;
+    init_cursors[0].x = CURSOR_EDGE;
     init_cursors[0].y = 0;
-    init_cursors[0].active = false;
+    init_cursors[0].active = true;
     for(int i = 1; i < CURSOR_MAX; i++)
     {
         init_cursors[i].x = 0;
@@ -97,16 +106,19 @@ void init_editor(Editor *editor, const char *init_file_name)
 
 void render_editor(const Editor *editor)
 {
-    size_t win_x = 0;
+    size_t win_x = 4;
     size_t win_y = 0;
 
-    for(size_t i = 0; i < editor->buffer_size - 1; i++)
+    for(size_t i = 0; i <= editor->lines; i++)
+        mvprintw(i, 0, "%ld", i);
+
+    for(size_t i = 0; i < editor->buffer_usage; i++)
     {
-        register const char c = editor->buffer[i];
+        const char c = editor->buffer[i];
         if(c == '\n')
         {
             win_y++;
-            win_x = 0;
+            win_x = 4;
         }
         if(c != 0)
         {
@@ -114,10 +126,16 @@ void render_editor(const Editor *editor)
             win_x++;
         }
     }
-    mvaddch(editor->cursors[0].y, editor->cursors[0].x, '@');
+    mvaddch(editor->cursors[0].y, editor->cursors[0].x, '|');
 
-    mvprintw(LINES-3, 0, "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X %zu CURSOR_Y %zu",
-             editor->buffer_size, editor->buffer_usage, editor->buffer_index, editor->cursors[0].x, editor->cursors[0].y);
+    mvprintw(LINES-3, 0, 
+            "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X: %zu CURSOR_Y: %zu, LINES: %zu",
+             editor->buffer_size, 
+             editor->buffer_usage, 
+             editor->buffer_index, 
+             editor->cursors[0].x, 
+             editor->cursors[0].y, 
+             editor->lines);
 }
 
 void write_buffer(const Editor *editor)
@@ -137,21 +155,16 @@ void write_buffer(const Editor *editor)
     fclose(output_file);
 }
 
-/*
- *  Count newlines in buffer
- *      ensure cursor can't go past number of newlines.
- *      modify buffer.
- */
 size_t gen_index_from_cursor(const Editor * editor)
 {
     size_t lines = 0;
     size_t x_pos = 0;
-    for(size_t i = 0; i < editor->buffer_usage; i++)
+    for(size_t i = 0; i < editor->buffer_usage; ++i)
     {
         if(lines == editor->cursors[0].y)
         {
             x_pos++;
-            if(x_pos == editor->cursors[0].x)
+            if(x_pos == editor->cursors[0].x - 4)
             {
                 return i;
             }
@@ -159,6 +172,7 @@ size_t gen_index_from_cursor(const Editor * editor)
         if(editor->buffer[i] == '\n')
             lines++;
     }
+    return 0;
 }
 
 int interact(Editor* editor,const char input)
@@ -206,10 +220,13 @@ int interact(Editor* editor,const char input)
         {
             editor->buffer[editor->buffer_index] = input;
             editor->buffer_usage++;
+            editor->cursors[0].x++;
         }
         if(input == '\n')
         {
             editor->lines++;
+            editor->cursors[0].x = CURSOR_EDGE;
+            editor->cursors[0].y++;
         }
     }
     if(editor->buffer_index <= editor->buffer_size - 1)
@@ -220,6 +237,11 @@ int interact(Editor* editor,const char input)
 
 int main(int argc, char **argv)
 {
+    if(argc > 2)
+    {
+        fputs("Please specify only one file as of now", stderr);
+        return 1;
+    }
     initscr();
     Editor editor;
     init_editor(&editor, argv[1]);
@@ -234,6 +256,7 @@ int main(int argc, char **argv)
             break;
         }
     }
+    fputs(editor.buffer, stderr);
     endwin();
     return 0;
 }

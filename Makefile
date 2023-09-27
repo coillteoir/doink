@@ -1,7 +1,7 @@
 build:
 	gcc -Wall -Wextra -pedantic -march=native -o bin/doink src/main.c -lncurses
 
-run:
+run: build
 	./bin/doink
 
 lint:
