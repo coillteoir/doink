@@ -106,7 +106,7 @@ void init_editor(Editor *editor, const char *init_file_name)
 
 void render_editor(const Editor *editor)
 {
-    size_t win_x = 4;
+    size_t win_x = CURSOR_EDGE;
     size_t win_y = 0;
 
     for(size_t i = 0; i <= editor->lines; i++)
@@ -118,7 +118,7 @@ void render_editor(const Editor *editor)
         if(c == '\n')
         {
             win_y++;
-            win_x = 4;
+            win_x = CURSOR_EDGE;
         }
         if(c != 0)
         {
@@ -126,15 +126,15 @@ void render_editor(const Editor *editor)
             win_x++;
         }
     }
-    mvaddch(editor->cursors[0].y, editor->cursors[0].x, '|');
+    mvaddch(editor->cursors[0].y, editor->cursors[0].x, '<');
 
-    mvprintw(LINES-3, 0, 
-            "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X: %zu CURSOR_Y: %zu, LINES: %zu",
-             editor->buffer_size, 
-             editor->buffer_usage, 
-             editor->buffer_index, 
-             editor->cursors[0].x, 
-             editor->cursors[0].y, 
+    mvprintw(LINES-3, 0,
+             "DEBUG_INFO BUFFER_LEN: %zu BUFFER_USAGE: %zu BUFFER_INDEX: %zu CURSOR_X: %zu CURSOR_Y: %zu, LINES: %zu",
+             editor->buffer_size,
+             editor->buffer_usage,
+             editor->buffer_index,
+             editor->cursors[0].x,
+             editor->cursors[0].y,
              editor->lines);
 }
 
@@ -164,15 +164,42 @@ size_t gen_index_from_cursor(const Editor * editor)
         if(lines == editor->cursors[0].y)
         {
             x_pos++;
-            if(x_pos == editor->cursors[0].x - 4)
-            {
+            if(x_pos == editor->cursors[0].x - CURSOR_EDGE)
                 return i;
-            }
         }
         if(editor->buffer[i] == '\n')
             lines++;
     }
     return 0;
+}
+
+void delete_char(Editor *editor)
+{
+    if(editor->buffer_index == 0)
+        return;
+
+    char *ptr = editor->buffer;
+    size_t index = editor->buffer_index;
+    size_t usage = editor->buffer_usage;
+
+    memcpy(ptr + index + 1, ptr + index, usage - index);
+
+    editor->buffer_usage--;
+    editor->cursors[0].x--;
+    editor->buffer_index = gen_index_from_cursor(editor);
+}
+
+void insert_char(Editor *editor, const char input)
+{
+    char *ptr = editor->buffer;
+    size_t index = editor->buffer_index;
+    size_t usage = editor->buffer_usage;
+
+    memcpy(ptr + index, ptr + index + 1, usage - index);
+
+    editor->buffer[editor->buffer_index] = input;
+    editor->buffer_usage++;
+    editor->cursors[0].x++;
 }
 
 int interact(Editor* editor,const char input)
@@ -186,8 +213,11 @@ int interact(Editor* editor,const char input)
         return 0;
     }
 
-    if(input == '\b')
+    if(input == 0x7F)
+    {
+        delete_char(editor);
         return 0;
+    }
 
     //Parsing Arrow key inputs
     if(input == '\033') //first value is esc
@@ -210,6 +240,7 @@ int interact(Editor* editor,const char input)
         case 'D':
             editor->cursors[0].x--;
             editor->buffer_index = gen_index_from_cursor(editor);
+            break;
         }
         return 0;
     }
@@ -218,9 +249,7 @@ int interact(Editor* editor,const char input)
     {
         if(editor->buffer_index < editor->buffer_size)
         {
-            editor->buffer[editor->buffer_index] = input;
-            editor->buffer_usage++;
-            editor->cursors[0].x++;
+            insert_char(editor, input);
         }
         if(input == '\n')
         {
@@ -256,7 +285,6 @@ int main(int argc, char **argv)
             break;
         }
     }
-    fputs(editor.buffer, stderr);
     endwin();
     return 0;
 }
