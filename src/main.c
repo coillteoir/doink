@@ -15,15 +15,13 @@
 #define CURSOR_MAX 4
 #define EDITOR_EXIT 1
 
-typedef struct
-{
+typedef struct {
     size_t x;
     size_t y;
     bool active;
 } Cursor;
 
-typedef struct
-{
+typedef struct {
     Cursor *cursors;
     size_t lines;
     size_t buffer_size;
@@ -35,8 +33,7 @@ typedef struct
     int mode;
 } Editor;
 
-size_t count_lines(const Editor * editor)
-{
+size_t count_lines(const Editor * editor) {
     size_t lines = 0;
     for(size_t i = 0; i < editor->buffer_usage; i++)
         if(editor->buffer[i] == '\n')
@@ -44,8 +41,7 @@ size_t count_lines(const Editor * editor)
     return lines;
 }
 
-void load_buffer_from_file(Editor *editor)
-{
+void load_buffer_from_file(Editor *editor) {
     FILE *input_file = fopen(editor->file_name, "r");
 
     fseek(input_file, 0,SEEK_END);
@@ -59,8 +55,7 @@ void load_buffer_from_file(Editor *editor)
 
     editor->buffer = malloc(editor->buffer_size);
 
-    for(char c = fgetc(input_file); !feof(input_file); c = fgetc(input_file))
-    {
+    for(char c = fgetc(input_file); !feof(input_file); c = fgetc(input_file)) {
         static int i = 0;
         editor->buffer[i] = c;
         i++;
@@ -71,17 +66,13 @@ void load_buffer_from_file(Editor *editor)
     fclose(input_file);
 }
 
-void init_editor(Editor *editor, const char *init_file_name)
-{
+void init_editor(Editor *editor, const char *init_file_name) {
     editor->file_name = init_file_name;
-    if(access(editor->file_name, F_OK) == 0)
-    {
+    if(access(editor->file_name, F_OK) == 0) {
         load_buffer_from_file(editor);
         editor->file_exists = true;
         editor->lines = count_lines(editor);
-    }
-    else
-    {
+    } else {
         editor->buffer = malloc(BUFFER_MIN);
         editor->buffer_size = BUFFER_MIN;
         memset(editor->buffer, 0, editor->buffer_size - 1);
@@ -95,8 +86,7 @@ void init_editor(Editor *editor, const char *init_file_name)
     init_cursors[0].x = CURSOR_EDGE;
     init_cursors[0].y = 0;
     init_cursors[0].active = true;
-    for(int i = 1; i < CURSOR_MAX; i++)
-    {
+    for(int i = 1; i < CURSOR_MAX; i++) {
         init_cursors[i].x = 0;
         init_cursors[i].y = 0;
         init_cursors[i].active = false;
@@ -104,24 +94,20 @@ void init_editor(Editor *editor, const char *init_file_name)
     editor->cursors = init_cursors;
 }
 
-void render_editor(const Editor *editor)
-{
+void render_editor(const Editor *editor) {
     size_t win_x = CURSOR_EDGE;
     size_t win_y = 0;
 
     for(size_t i = 0; i <= editor->lines; i++)
         mvprintw(i, 0, "%ld", i);
 
-    for(size_t i = 0; i < editor->buffer_usage; i++)
-    {
+    for(size_t i = 0; i < editor->buffer_usage; i++) {
         const char c = editor->buffer[i];
-        if(c == '\n')
-        {
+        if(c == '\n') {
             win_y++;
             win_x = CURSOR_EDGE;
         }
-        if(c != 0)
-        {
+        if(c != 0) {
             mvaddch(win_y, win_x, editor->buffer[i]);
             win_x++;
         }
@@ -138,31 +124,25 @@ void render_editor(const Editor *editor)
              editor->lines);
 }
 
-void write_buffer(const Editor *editor)
-{
+void write_buffer(const Editor *editor) {
     FILE* output_file;
-    if(editor->file_name == NULL)
-    {
+    if(editor->file_name == NULL) {
         char * fname = malloc(255);
         mvprintw(LINES-2, 0, "Please name your text file");
         mvgetnstr(LINES-1, 0,fname, 254);
         output_file = fopen(fname, "w+");
-    }
-    else
+    } else
         output_file = fopen(editor->file_name, "w+");
     fputs(editor->buffer, output_file);
     fputc('\n', output_file);
     fclose(output_file);
 }
 
-size_t gen_index_from_cursor(const Editor * editor)
-{
+size_t gen_index_from_cursor(const Editor * editor) {
     size_t lines = 0;
     size_t x_pos = 0;
-    for(size_t i = 0; i < editor->buffer_usage; ++i)
-    {
-        if(lines == editor->cursors[0].y)
-        {
+    for(size_t i = 0; i < editor->buffer_usage; ++i) {
+        if(lines == editor->cursors[0].y) {
             x_pos++;
             if(x_pos == editor->cursors[0].x - CURSOR_EDGE)
                 return i;
@@ -173,8 +153,7 @@ size_t gen_index_from_cursor(const Editor * editor)
     return 0;
 }
 
-void delete_char(Editor *editor)
-{
+void delete_char(Editor *editor) {
     if(editor->buffer_index == 0)
         return;
 
@@ -189,8 +168,7 @@ void delete_char(Editor *editor)
     editor->buffer_index = gen_index_from_cursor(editor);
 }
 
-void insert_char(Editor *editor, const char input)
-{
+void insert_char(Editor *editor, const char input) {
     char *ptr = editor->buffer;
     size_t index = editor->buffer_index;
     size_t usage = editor->buffer_usage;
@@ -202,29 +180,24 @@ void insert_char(Editor *editor, const char input)
     editor->cursors[0].x++;
 }
 
-int interact(Editor* editor,const char input)
-{
+int interact(Editor* editor,const char input) {
     if(input == 4)
         return EDITOR_EXIT;
 
-    if(input == 23)
-    {
+    if(input == 23) {
         write_buffer(editor);
         return 0;
     }
 
-    if(input == 0x7F)
-    {
+    if(input == 0x7F) {
         delete_char(editor);
         return 0;
     }
 
     //Parsing Arrow key inputs
-    if(input == '\033') //first value is esc
-    {
+    if(input == '\033') { //first value is esc
         getch();
-        switch(getch())
-        {
+        switch(getch()) {
         case 'A':
             editor->cursors[0].y--;
             editor->buffer_index = gen_index_from_cursor(editor);
@@ -245,14 +218,11 @@ int interact(Editor* editor,const char input)
         return 0;
     }
 
-    if(editor->mode == 1)
-    {
-        if(editor->buffer_index < editor->buffer_size)
-        {
+    if(editor->mode == 1) {
+        if(editor->buffer_index < editor->buffer_size) {
             insert_char(editor, input);
         }
-        if(input == '\n')
-        {
+        if(input == '\n') {
             editor->lines++;
             editor->cursors[0].x = CURSOR_EDGE;
             editor->cursors[0].y++;
@@ -264,23 +234,19 @@ int interact(Editor* editor,const char input)
     return 0;
 }
 
-int main(int argc, char **argv)
-{
-    if(argc > 2)
-    {
+int main(int argc, char **argv) {
+    if(argc > 2) {
         fputs("Please specify only one file as of now", stderr);
         return 1;
     }
     initscr();
     Editor editor;
     init_editor(&editor, argv[1]);
-    for(;;)
-    {
+    for(;;) {
         refresh();
         clear();
         render_editor(&editor);
-        if(interact(&editor, getch()) == EDITOR_EXIT)
-        {
+        if(interact(&editor, getch()) == EDITOR_EXIT) {
             free(editor.buffer);
             break;
         }
